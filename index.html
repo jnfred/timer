@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Minuteur HIIT</title>
+
+    <!-- Lien vers le manifest PWA pour Android -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#e74c3c">
+
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #2c3e50;
+            --prep-color: #f1c40f;
+            --work-color: #e74c3c;
+            --rest-color: #2ecc71;
+            --finished-color: #3498db;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            transition: background-color 0.3s ease;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            flex: 1;
+            padding: 20px;
+            max-width: 500px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* Section Configuration */
+        .config-panel {
+            background: rgba(255, 255, 255, 0.85);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            backdrop-filter: blur(5px);
+        }
+
+        .form-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .form-group label {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .form-group input {
+            width: 80px;
+            padding: 8px;
+            font-size: 16px;
+            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        /* Section Presets */
+        .preset-bar {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding: 10px 0;
+            margin-bottom: 10px;
+        }
+
+        .btn-preset {
+            background-color: #ecf0f1;
+            border: 1px solid #bdc3c7;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 14px;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .btn-preset.custom {
+            background-color: #f39c12;
+            color: white;
+            border: none;
+        }
+
+        .preset-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 5px;
+        }
+
+        .btn-sm {
+            flex: 1;
+            padding: 6px;
+            font-size: 12px;
+            border: none;
+            border-radius: 6px;
+            background-color: #7f8c8d;
+            color: white;
+            cursor: pointer;
+        }
+
+        /* Section Timer */
+        .display-panel {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        #lbl-phase {
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        #lbl-time {
+            font-size: 80px;
+            font-weight: 900;
+            font-family: monospace;
+            line-height: 1;
+            margin-bottom: 10px;
+        }
+
+        #lbl-sets {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* Contrôles */
+        .controls {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn-main {
+            flex: 1;
+            padding: 18px;
+            font-size: 20px;
+            font-weight: bold;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+            transition: transform 0.1s;
+        }
+
+        .btn-main:active {
+            transform: scale(0.98);
+        }
+
+        #btn-start {
+            background-color: #2ecc71;
+            color: white;
+        }
+
+        #btn-reset {
+            background-color: #e74c3c;
+            color: white;
+        }
+
+        /* Dynamic Backgrounds */
+        body.PREP { background-color: var(--prep-color); color: #000; }
+        body.WORK { background-color: var(--work-color); color: #fff; }
+        body.REST { background-color: var(--rest-color); color: #fff; }
+        body.FINISHED { background-color: var(--finished-color); color: #fff; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Panneau de Configuration -->
+    <div class="config-panel">
+        <div class="preset-bar" id="preset-bar">
+            <!-- Injecté par JavaScript -->
+        </div>
+
+        <div class="form-group">
+            <label for="spin-prep">Préparation (sec) :</label>
+            <input type="number" id="spin-prep" min="0" max="300" value="10">
+        </div>
+        <div class="form-group">
+            <label for="spin-work">Effort (sec) :</label>
+            <input type="number" id="spin-work" min="5" max="600" value="20">
+        </div>
+        <div class="form-group">
+            <label for="spin-rest">Repos (sec) :</label>
+            <input type="number" id="spin-rest" min="0" max="600" value="10">
+        </div>
+        <div class="form-group">
+            <label for="spin-sets">Séries :</label>
+            <input type="number" id="spin-sets" min="1" max="99" value="8">
+        </div>
+
+        <div class="preset-actions">
+            <button class="btn-sm" id="btn-save-preset">+ Sauvegarder Preset</button>
+            <button class="btn-sm" id="btn-del-preset">- Supprimer Preset</button>
+        </div>
+    </div>
+
+    <!-- Affichage du Minuteur -->
+    <div class="display-panel">
+        <div id="lbl-phase">PRÊT ?</div>
+        <div id="lbl-time">00:00</div>
+        <div id="lbl-sets">Série : 0 / 0</div>
+    </div>
+
+    <!-- Boutons d'action -->
+    <div class="controls">
+        <button id="btn-start" class="btn-main">Démarrer</button>
+        <button id="btn-reset" class="btn-main">Réinitialiser</button>
+    </div>
+</div>
+
+<script>
+    // --- AUDIO SYNTHESIZER (Web Audio API) ---
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new AudioContext();
+        }
+    }
+
+    function playBeep(freq, durationMs) {
+        if (!audioCtx) return;
+        
+        try {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            
+            gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + (durationMs / 1000));
+        } catch (e) {
+            console.error("Erreur Audio:", e);
+        }
+    }
+
+    function playSound(type) {
+        initAudio();
+        if (type === "low") {
+            playBeep(440, 100);
+            if (navigator.vibrate) navigator.vibrate(100); // Vibration courte
+        } else if (type === "high") {
+            playBeep(880, 300);
+            if (navigator.vibrate) navigator.vibrate(300); // Vibration longue
+        } else if (type === "triple_high") {
+            playBeep(880, 300);
+            setTimeout(() => playBeep(880, 300), 400);
+            setTimeout(() => playBeep(880, 300), 800);
+            if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300]); // Motif de vibration
+        }
+    }
+
+    // --- WAKE LOCK (Empêcher la mise en veille de l'écran) ---
+    let wakeLock = null;
+    async function requestWakeLock() {
+        try {
+            if ('wakeLock' in navigator) {
+                wakeLock = await navigator.wakeLock.request('screen');
+            }
+        } catch (err) {
+            console.log("Wake Lock non supporté ou refusé.");
+        }
+    }
+
+    function releaseWakeLock() {
+        if (wakeLock !== null) {
+            wakeLock.release();
+            wakeLock = null;
+        }
+    }
+
+    // --- ÉTAT & LOGIQUE DU MINUTEUR ---
+    let timerId = null;
+    let currentPhase = "";
+    let timeLeft = 0;
+    let currentSet = 1;
+    let totalSets = 1;
+
+    let customPresets = JSON.parse(localStorage.getItem('hiit_custom_presets')) || {};
+
+    // Éléments DOM
+    const spinPrep = document.getElementById('spin-prep');
+    const spinWork = document.getElementById('spin-work');
+    const spinRest = document.getElementById('spin-rest');
+    const spinSets = document.getElementById('spin-sets');
+
+    const lblPhase = document.getElementById('lbl-phase');
+    const lblTime = document.getElementById('lbl-time');
+    const lblSets = document.getElementById('lbl-sets');
+
+    const btnStart = document.getElementById('btn-start');
+    const btnReset = document.getElementById('btn-reset');
+    const presetBar = document.getElementById('preset-bar');
+
+    // Sauvegarde & Chargement de la configuration
+    function saveCurrentConfig() {
+        const config = {
+            prep: parseInt(spinPrep.value) || 0,
+            work: parseInt(spinWork.value) || 0,
+            rest: parseInt(spinRest.value) || 0,
+            sets: parseInt(spinSets.value) || 1
+        };
+        localStorage.setItem('hiit_last_config', JSON.stringify(config));
+    }
+
+    function loadLastConfig() {
+        const config = JSON.parse(localStorage.getItem('hiit_last_config'));
+        if (config) {
+            spinPrep.value = config.prep;
+            spinWork.value = config.work;
+            spinRest.value = config.rest;
+            spinSets.value = config.sets;
+        }
+    }
+
+    function applyPreset(prep, work, rest, sets) {
+        resetTimer();
+        spinPrep.value = prep;
+        spinWork.value = work;
+        spinRest.value = rest;
+        spinSets.value = sets;
+        saveCurrentConfig();
+    }
+
+    function renderPresets() {
+        presetBar.innerHTML = '';
+        
+        // Custom Presets
+        for (const [name, values] of Object.entries(customPresets)) {
+            const btn = document.createElement('button');
+            btn.className = 'btn-preset custom';
+            btn.textContent = `★ ${name}`;
+            btn.onclick = () => applyPreset(...values);
+            presetBar.appendChild(btn);
+        }
+    }
+
+    // Handlers d'évènements Presets
+    document.getElementById('btn-save-preset').onclick = () => {
+        const name = prompt("Nom du preset :");
+        if (name && name.trim()) {
+            const trimmedName = name.trim();
+            customPresets[trimmedName] = [
+                parseInt(spinPrep.value) || 0,
+                parseInt(spinWork.value) || 0,
+                parseInt(spinRest.value) || 0,
+                parseInt(spinSets.value) || 1
+            ];
+            localStorage.setItem('hiit_custom_presets', JSON.stringify(customPresets));
+            renderPresets();
+        }
+    };
+
+    document.getElementById('btn-del-preset').onclick = () => {
+        const keys = Object.keys(customPresets);
+        if (keys.length === 0) return alert("Aucun preset personnalisé à supprimer.");
+        
+        const name = prompt(`Entrez le nom exact du preset à supprimer :\n(${keys.join(', ')})`);
+        if (name && customPresets[name]) {
+            delete customPresets[name];
+            localStorage.setItem('hiit_custom_presets', JSON.stringify(customPresets));
+            renderPresets();
+        }
+    };
+
+    // Logique du Minuteur
+    function updateDisplay() {
+        const mins = Math.floor(timeLeft / 60);
+        const secs = timeLeft % 60;
+        lblTime.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        lblSets.textContent = `Série : ${currentSet} / ${totalSets}`;
+    }
+
+    function switchPhase(phase, seconds) {
+        currentPhase = phase;
+        timeLeft = seconds;
+        updateDisplay();
+
+        document.body.className = '';
+        if (phase === "PREP") {
+            lblPhase.textContent = "PRÉPARATION";
+            document.body.classList.add('PREP');
+        } else if (phase === "WORK") {
+            lblPhase.textContent = "EFFORT !";
+            document.body.classList.add('WORK');
+        } else if (phase === "REST") {
+            lblPhase.textContent = "REPOS";
+            document.body.classList.add('REST');
+        } else if (phase === "FINISHED") {
+            lblPhase.textContent = "TERMINÉ !";
+            document.body.classList.add('FINISHED');
+            clearInterval(timerId);
+            timerId = null;
+            btnStart.textContent = "Démarrer";
+            releaseWakeLock();
+        }
+    }
+
+    function advanceSet() {
+        if (currentSet < totalSets) {
+            currentSet++;
+            switchPhase("WORK", parseInt(spinWork.value));
+        } else {
+            switchPhase("FINISHED", 0);
+        }
+    }
+
+    function nextPhase() {
+        if (currentPhase === "PREP") {
+            switchPhase("WORK", parseInt(spinWork.value));
+        } else if (currentPhase === "WORK") {
+            const restVal = parseInt(spinRest.value);
+            if (currentSet < totalSets && restVal > 0) {
+                switchPhase("REST", restVal);
+            } else {
+                advanceSet();
+            }
+        } else if (currentPhase === "REST") {
+            advanceSet();
+        }
+    }
+
+    function tick() {
+        if (timeLeft > 0) {
+            timeLeft--;
+            updateDisplay();
+
+            if (timeLeft === 3 || timeLeft === 2 || timeLeft === 1) {
+                playSound("low");
+            } else if (timeLeft === 0) {
+                if (currentPhase === "WORK" && currentSet === totalSets) {
+                    playSound("triple_high");
+                } else {
+                    playSound("high");
+                }
+            }
+        } else {
+            nextPhase();
+        }
+    }
+
+    function startTimer() {
+        initAudio(); // Activer l'audio sur clic
+        requestWakeLock();
+
+        if (timerId !== null) {
+            // Pause
+            clearInterval(timerId);
+            timerId = null;
+            btnStart.textContent = "Reprendre";
+            releaseWakeLock();
+        } else {
+            // Démarrage / Reprise
+            if (currentPhase === "" || currentPhase === "FINISHED") {
+                currentSet = 1;
+                totalSets = parseInt(spinSets.value);
+                const prepVal = parseInt(spinPrep.value);
+                
+                const initialPhase = prepVal > 0 ? "PREP" : "WORK";
+                const initialTime = prepVal > 0 ? prepVal : parseInt(spinWork.value);
+
+                switchPhase(initialPhase, initialTime);
+
+                if ([1, 2, 3].includes(initialTime)) {
+                    playSound("low");
+                }
+            }
+            timerId = setInterval(tick, 1000);
+            btnStart.textContent = "Pause";
+        }
+    }
+
+    function resetTimer() {
+        if (timerId) clearInterval(timerId);
+        timerId = null;
+        currentPhase = "";
+        lblPhase.textContent = "PRÊT ?";
+        lblTime.textContent = "00:00";
+        lblSets.textContent = "Série : 0 / 0";
+        btnStart.textContent = "Démarrer";
+        document.body.className = '';
+        releaseWakeLock();
+    }
+
+    // Écouteurs d'événements
+    btnStart.onclick = startTimer;
+    btnReset.onclick = resetTimer;
+
+    [spinPrep, spinWork, spinRest, spinSets].forEach(input => {
+        input.onchange = saveCurrentConfig;
+    });
+
+    // Initialisation au chargement
+    loadLastConfig();
+    renderPresets();
+</script>
+</body>
+</html>
